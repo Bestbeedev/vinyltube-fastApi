@@ -39,6 +39,14 @@ class YouTubeService:
             'listformats': True,
             'socket_timeout': 10,
             'retries': 1,
+            # Options pour contourner les restrictions YouTube
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['ios', 'web', 'android'],
+                }
+            },
+            'extractor_retries': 3,
         }
         
         loop = asyncio.get_event_loop()
@@ -94,7 +102,7 @@ class YouTubeService:
         if not video_id:
             raise ValueError("URL YouTube invalide")
         
-        # Configuration de téléchargement avec cookies du navigateur
+        # Configuration de téléchargement améliorée pour contourner les restrictions
         download_opts = {
             'format': itag,
             'outtmpl': f'{settings.DOWNLOAD_DIR}/%(title)s_[%(id)s].%(ext)s',
@@ -103,8 +111,15 @@ class YouTubeService:
             'postprocessors': [],
             'socket_timeout': 60,
             'retries': 3,
-            # Utiliser les cookies du navigateur pour contourner les restrictions
-            'cookiesfrombrowser': ('firefox',),  # Essayer Firefox
+            # Options pour contourner les restrictions YouTube
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['ios', 'web', 'android'],
+                }
+            },
+            'extractor_retries': 3,
+            'fragment_retries': 3,
         }
         
         # Ajouter des post-processeurs selon le format
@@ -148,26 +163,4 @@ class YouTubeService:
         except asyncio.TimeoutError:
             raise RuntimeError("Timeout lors du téléchargement")
         except Exception as e:
-            # Si les cookies Chrome ne fonctionnent pas, essayer sans cookies
-            if "cookies" in str(e).lower():
-                download_opts.pop('cookiesfrombrowser', None)
-                try:
-                    filepath = await asyncio.wait_for(
-                        loop.run_in_executor(None, _download), 
-                        timeout=120.0
-                    )
-                    import os
-                    file_size = os.path.getsize(filepath)
-                    filename = os.path.basename(filepath)
-                    download_url = f"/api/download/file/{filename}"
-                    return {
-                        'filepath': filepath,
-                        'filename': filename,
-                        'downloadUrl': download_url,
-                        'fileSize': self._format_file_size(file_size),
-                        'success': True
-                    }
-                except Exception as e2:
-                    raise RuntimeError(f"Erreur téléchargement: {str(e2)}")
-            else:
-                raise RuntimeError(f"Erreur téléchargement: {str(e)}")
+            raise RuntimeError(f"Erreur téléchargement: {str(e)}")
