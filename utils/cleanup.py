@@ -28,10 +28,17 @@ class CleanupScheduler:
     async def cleanup_old_files(self):
         """Nettoie les fichiers plus vieux que FILE_RETENTION"""
         try:
+            # Nettoyage par âge
             deleted_count = self.file_service.cleanup_old_files(settings.FILE_RETENTION)
             
-            if deleted_count > 0:
-                print(f"🧹 Nettoyé {deleted_count} fichiers anciens")
+            # Nettoyage par taille totale
+            cleanup_manager = CleanupManager()
+            size_deleted = await cleanup_manager.cleanup_by_size(settings.MAX_TOTAL_SIZE_MB)
+            
+            total_deleted = deleted_count + size_deleted
+            
+            if total_deleted > 0:
+                print(f"🧹 Nettoyé {total_deleted} fichiers ({deleted_count} par âge, {size_deleted} par taille)")
                 
                 # Afficher les statistiques après nettoyage
                 stats = self.file_service.get_directory_stats()

@@ -18,8 +18,9 @@ class Settings(BaseSettings):
     # Downloads
     DOWNLOAD_DIR: str = "./downloads"
     MAX_FILE_SIZE: int = 500 * 1024 * 1024  # 500MB
-    CLEANUP_INTERVAL: int = 3600  # 1 heure en secondes
-    FILE_RETENTION: int = 24 * 3600  # 24 heures
+    MAX_TOTAL_SIZE_MB: int = 2000  # 2GB maximum pour le dossier downloads
+    CLEANUP_INTERVAL: int = 1800  # 30 minutes en secondes (plus fréquent en prod)
+    FILE_RETENTION: int = 6 * 3600  # 6 heures (plus court en prod)
     
     # Rate Limiting
     RATE_LIMIT_REQUESTS: int = 10
