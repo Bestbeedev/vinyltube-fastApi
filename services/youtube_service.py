@@ -157,8 +157,10 @@ class YouTubeService:
             file_size = os.path.getsize(filepath)
             filename = os.path.basename(filepath)
             
-            # Créer une URL de téléchargement relative
-            download_url = f"/api/download/file/{filename}"
+            # Créer une URL de téléchargement relative avec encodage correct
+            import urllib.parse
+            encoded_filename = urllib.parse.quote(filename)
+            download_url = f"/api/download/file/{encoded_filename}"
             
             return {
                 'filepath': filepath,

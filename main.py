@@ -193,11 +193,15 @@ async def download_video(request: Request, body: DownloadRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Erreur lors du téléchargement")
 
-@app.get("/api/download/file/{filename}")
+@app.get("/api/download/file/{filename:path}")
 async def serve_file(filename: str):
     """Sert un fichier téléchargé"""
     try:
-        file_path = os.path.join(settings.DOWNLOAD_DIR, filename)
+        # Décoder le nom de fichier
+        import urllib.parse
+        decoded_filename = urllib.parse.unquote(filename)
+        
+        file_path = os.path.join(settings.DOWNLOAD_DIR, decoded_filename)
         
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="Fichier non trouvé")
@@ -209,7 +213,7 @@ async def serve_file(filename: str):
         
         return FileResponse(
             file_path,
-            filename=filename,
+            filename=decoded_filename,
             media_type='application/octet-stream'
         )
         
