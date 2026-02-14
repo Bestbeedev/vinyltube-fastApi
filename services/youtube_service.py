@@ -38,15 +38,17 @@ class YouTubeService:
             'extract_flat': False,
             'listformats': True,
             'socket_timeout': 10,
-            'retries': 1,
+            'retries': 3,
             # Options pour contourner les restrictions YouTube
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['ios', 'web', 'android'],
+                    'player_client': ['ios', 'web', 'android', 'web_music'],
+                    'player_skip': ['configs', 'webpage'],
                 }
             },
-            'extractor_retries': 3,
+            'extractor_retries': 5,
+            'nocheckcertificate': True,
         }
         
         loop = asyncio.get_event_loop()
@@ -110,16 +112,22 @@ class YouTubeService:
             'no_warnings': True,
             'postprocessors': [],
             'socket_timeout': 60,
-            'retries': 3,
+            'retries': 5,
             # Options pour contourner les restrictions YouTube
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['ios', 'web', 'android'],
+                    'player_client': ['ios', 'web', 'android', 'web_music'],
+                    'player_skip': ['configs', 'webpage'],
                 }
             },
-            'extractor_retries': 3,
-            'fragment_retries': 3,
+            'extractor_retries': 5,
+            'fragment_retries': 10,
+            'retry_sleep_functions': {
+                'http': lambda n: min(30, (n + 1) * 2),
+                'fragment': lambda n: min(30, (n + 1) * 2),
+            },
+            'nocheckcertificate': True,
         }
         
         # Ajouter des post-processeurs selon le format
