@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import time
 import os
@@ -10,8 +10,8 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from models import (
-    ExtractRequest, DownloadRequest, VideoInfo, 
-    DownloadResponse, HealthResponse
+    ExtractRequest, DownloadRequest, VideoInfo,
+    DownloadResponse, DownloadJobResponse, HealthResponse
 )
 from services.youtube_service import YouTubeService
 from services.file_service import FileService
@@ -101,7 +101,7 @@ async def extract_video_info_fast(request: Request, body: ExtractRequest):
             'retries': 1,
         }
         
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         
         def _extract_info():
             import yt_dlp
@@ -110,7 +110,7 @@ async def extract_video_info_fast(request: Request, body: ExtractRequest):
         
         info = await asyncio.wait_for(
             loop.run_in_executor(None, _extract_info), 
-            timeout=10.0  # 10 secondes timeout
+            timeout=10.0
         )
         
         # Retourner seulement les infos de base
@@ -162,64 +162,81 @@ async def extract_video_info(request: Request, body: ExtractRequest):
 
 @app.post("/api/download")
 async def download_video(request: Request, body: DownloadRequest):
-    """Prépare et sert le téléchargement d'une vidéo"""
+    """Démarre un job de téléchargement et retourne son job_id pour le suivi SSE."""
     try:
-        # Rate limiting
         if not rate_limiter(request):
             raise HTTPException(status_code=429, detail="Trop de requêtes")
-        
-        # Validation
+
         validate_url(str(body.url))
-        
-        # Téléchargement
-        download_info = await youtube_service.download_video(
-            str(body.url), 
-            body.itag, 
+
+        job_id = await youtube_service.start_download_job(
+            str(body.url),
+            body.itag,
             body.format
         )
-        
-        return DownloadResponse(
-            success=True,
-            downloadUrl=download_info['downloadUrl'],
-            filename=download_info['filename'],
-            fileSize=download_info['fileSize'],
-            message="Fichier prêt pour le téléchargement"
-        )
-        
+
+        return DownloadJobResponse(job_id=job_id)
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Erreur lors du téléchargement")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/download/progress/{job_id}")
+async def download_progress(job_id: str):
+    """Stream SSE de la progression d'un job de téléchargement."""
+    job = youtube_service.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job introuvable")
+
+    return StreamingResponse(
+        youtube_service.stream_job_progress(job_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 @app.get("/api/download/file/{filename:path}")
 async def serve_file(filename: str):
     """Sert un fichier téléchargé"""
     try:
-        # Décoder le nom de fichier
         import urllib.parse
-        decoded_filename = urllib.parse.unquote(filename)
-        
-        file_path = os.path.join(settings.DOWNLOAD_DIR, decoded_filename)
-        
-        if not os.path.exists(file_path):
+        from pathlib import Path
+
+        # Décodage simple (une seule passe) — bloque le double-encodage
+        decoded = urllib.parse.unquote(filename)
+        if decoded != filename and urllib.parse.unquote(decoded) != decoded:
+            raise HTTPException(status_code=400, detail="Nom de fichier invalide")
+
+        # Rejeter tout nom contenant un séparateur de chemin ou composant vide
+        if any(part in ('', '.', '..') for part in Path(decoded).parts):
+            raise HTTPException(status_code=400, detail="Nom de fichier invalide")
+
+        base_dir = Path(settings.DOWNLOAD_DIR).resolve()
+        file_path = (base_dir / decoded).resolve()
+
+        # Vérification stricte de confinement dans base_dir
+        if not str(file_path).startswith(str(base_dir) + os.sep):
+            raise HTTPException(status_code=400, detail="Nom de fichier invalide")
+
+        if not file_path.exists() or not file_path.is_file():
             raise HTTPException(status_code=404, detail="Fichier non trouvé")
-        
-        # Vérifier la taille du fichier
-        file_size = os.path.getsize(file_path)
-        if file_size > settings.MAX_FILE_SIZE:
+
+        if file_path.stat().st_size > settings.MAX_FILE_SIZE:
             raise HTTPException(status_code=413, detail="Fichier trop volumineux")
-        
+
         return FileResponse(
-            file_path,
-            filename=decoded_filename,
+            str(file_path),
+            filename=decoded,
             media_type='application/octet-stream'
         )
-        
+
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Erreur lors du service du fichier")
 
 @app.get("/api/health")

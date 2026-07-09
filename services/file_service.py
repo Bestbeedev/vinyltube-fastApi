@@ -1,7 +1,11 @@
 import os
+import logging
 import shutil
+from pathlib import Path
 from typing import List, Dict
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 class FileService:
     def __init__(self):
@@ -12,9 +16,17 @@ class FileService:
         os.makedirs(self.download_dir, exist_ok=True)
         os.makedirs(settings.FRONTEND_BUILD_PATH, exist_ok=True)
     
+    def _safe_path(self, filename: str) -> str:
+        """Valide et retourne un chemin sécurisé contre le path traversal"""
+        base = Path(self.download_dir).resolve()
+        full = (base / filename).resolve()
+        if not str(full).startswith(str(base) + os.sep):
+            raise ValueError(f"Nom de fichier invalide: {filename}")
+        return str(full)
+
     def get_file_info(self, filename: str) -> Dict:
         """Retourne les informations d'un fichier"""
-        file_path = os.path.join(self.download_dir, filename)
+        file_path = self._safe_path(filename)
         
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Fichier {filename} non trouvé")
@@ -42,7 +54,8 @@ class FileService:
             if os.path.isfile(file_path):
                 try:
                     files.append(self.get_file_info(filename))
-                except Exception:
+                except Exception as e:
+                    logger.warning("Impossible de lire le fichier %s: %s", filename, e)
                     continue
         
         # Trier par date de modification (plus récent d'abord)
@@ -51,14 +64,14 @@ class FileService:
     
     def delete_file(self, filename: str) -> bool:
         """Supprime un fichier spécifique"""
-        file_path = os.path.join(self.download_dir, filename)
-        
         try:
+            file_path = self._safe_path(filename)
             if os.path.exists(file_path) and os.path.isfile(file_path):
                 os.remove(file_path)
                 return True
             return False
-        except Exception:
+        except Exception as e:
+            logger.error("Erreur suppression fichier %s: %s", filename, e)
             return False
     
     def cleanup_old_files(self, max_age_seconds: int = None) -> int:
@@ -82,7 +95,8 @@ class FileService:
                     try:
                         os.remove(file_path)
                         deleted_count += 1
-                    except Exception:
+                    except Exception as e:
+                        logger.warning("Impossible de supprimer %s: %s", file_path, e)
                         continue
         
         return deleted_count

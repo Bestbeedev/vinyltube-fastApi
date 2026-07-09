@@ -1,5 +1,5 @@
 from pydantic import BaseModel, HttpUrl, validator
-from typing import List, Optional, Literal
+from typing import List, Optional
 from enum import Enum
 
 class FormatType(str, Enum):
@@ -26,12 +26,6 @@ class VideoInfo(BaseModel):
 
 class ExtractRequest(BaseModel):
     url: HttpUrl
-    
-    @validator('url')
-    def validate_youtube_url(cls, v):
-        if not any(x in str(v) for x in ['youtube.com', 'youtu.be']):
-            raise ValueError('URL YouTube invalide')
-        return v
 
 class DownloadRequest(BaseModel):
     url: HttpUrl
@@ -45,6 +39,10 @@ class DownloadResponse(BaseModel):
     fileSize: str
     duration: Optional[int] = None
     message: str = "Fichier prêt pour le téléchargement"
+
+class DownloadJobResponse(BaseModel):
+    job_id: str
+    message: str = "Téléchargement démarré"
 
 class HealthResponse(BaseModel):
     status: str = "healthy"
