@@ -9,7 +9,12 @@ from typing import List, Dict, Optional, AsyncGenerator
 from models import VideoInfo, VideoFormat, FormatType
 from config import settings
 
+import shutil
+
 _download_jobs: Dict[str, Dict] = {}
+
+# Chemin ffmpeg résolu une seule fois au démarrage
+_FFMPEG_LOCATION = shutil.which('ffmpeg') or '/usr/local/bin/ffmpeg'
 
 
 class YouTubeService:
@@ -18,6 +23,7 @@ class YouTubeService:
             'quiet': True,
             'no_warnings': True,
             'nocheckcertificate': True,
+            'ffmpeg_location': _FFMPEG_LOCATION,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
 
