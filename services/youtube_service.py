@@ -10,6 +10,7 @@ from models import VideoInfo, VideoFormat, FormatType
 from config import settings
 
 import shutil
+from yt_dlp.networking.impersonate import ImpersonateTarget
 
 _download_jobs: Dict[str, Dict] = {}
 
@@ -24,7 +25,7 @@ class YouTubeService:
             'no_warnings': True,
             'nocheckcertificate': True,
             'ffmpeg_location': _FFMPEG_LOCATION,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'impersonate': ImpersonateTarget('chrome'),
         }
 
     def extract_video_id(self, url: str) -> str:
@@ -44,14 +45,14 @@ class YouTubeService:
             **self._base_opts,
             'extract_flat': False,
             'listformats': True,
-            'socket_timeout': 10,
+            'socket_timeout': 15,
             'retries': 3,
             'extractor_retries': 5,
             'extractor_args': {
                 'youtube': {
                     'player_client': ['ios', 'web', 'android', 'web_music'],
                     'player_skip': ['configs', 'webpage'],
-                }
+                },
             },
         }
 
@@ -80,11 +81,9 @@ class YouTubeService:
                         type=FormatType.VIDEO if fmt.get('vcodec') != 'none' else FormatType.AUDIO
                     ))
 
-            fallback_thumb = f'https://i.ytimg.com/vi/{video_id}/hqdefault.jpg'
-
             return VideoInfo(
                 title=info.get('title', 'Vidéo sans titre'),
-                thumbnail=info.get('thumbnail') or fallback_thumb,
+                thumbnail=info.get('thumbnail') or '',
                 author=info.get('uploader') or info.get('channel') or 'Inconnu',
                 duration=info.get('duration') or 0,
                 formats=formats,
@@ -163,7 +162,7 @@ class YouTubeService:
                 'youtube': {
                     'player_client': ['ios', 'web', 'android', 'web_music'],
                     'player_skip': ['configs', 'webpage'],
-                }
+                },
             },
             'retry_sleep_functions': {
                 'http': lambda n: min(30, (n + 1) * 2),
