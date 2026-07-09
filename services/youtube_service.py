@@ -18,6 +18,9 @@ _download_jobs: Dict[str, Dict] = {}
 _FFMPEG_LOCATION = shutil.which('ffmpeg') or '/usr/local/bin/ffmpeg'
 
 
+_YOUTUBE_DOMAINS = re.compile(r'youtube\.com|youtu\.be')
+
+
 class YouTubeService:
     def __init__(self):
         self._base_opts = {
@@ -25,8 +28,20 @@ class YouTubeService:
             'no_warnings': True,
             'nocheckcertificate': True,
             'ffmpeg_location': _FFMPEG_LOCATION,
+        }
+        self._youtube_extra: dict = {}
+        self._impersonate_opts = {
             'impersonate': ImpersonateTarget('chrome'),
         }
+
+    def _is_youtube(self, url: str) -> bool:
+        return bool(_YOUTUBE_DOMAINS.search(url))
+
+    def _platform_opts(self, url: str) -> dict:
+        """Retourne les options spécifiques à la plateforme."""
+        if self._is_youtube(url):
+            return self._youtube_extra
+        return self._impersonate_opts
 
     def extract_video_id(self, url: str) -> str:
         yt = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([^&?\n]+)', url)
@@ -43,17 +58,11 @@ class YouTubeService:
 
         ydl_opts = {
             **self._base_opts,
+            **self._platform_opts(url),
             'extract_flat': False,
-            'listformats': True,
             'socket_timeout': 15,
             'retries': 3,
             'extractor_retries': 5,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['ios', 'web', 'android', 'web_music'],
-                    'player_skip': ['configs', 'webpage'],
-                },
-            },
         }
 
         loop = asyncio.get_running_loop()
@@ -73,7 +82,7 @@ class YouTubeService:
                 if fmt.get('vcodec') != 'none' or fmt.get('acodec') != 'none':
                     formats.append(VideoFormat(
                         itag=str(fmt.get('format_id', '')),
-                        quality=fmt.get('format_note', fmt.get('resolution', 'Unknown')),
+                        quality=fmt.get('format_note') or fmt.get('resolution') or fmt.get('height') and f"{fmt['height']}p" or 'Unknown',
                         container=fmt.get('ext', 'mp4'),
                         hasAudio=fmt.get('acodec') != 'none',
                         hasVideo=fmt.get('vcodec') != 'none',
@@ -151,6 +160,7 @@ class YouTubeService:
     async def download_video(self, url: str, itag: str, format_type: FormatType, job_id: str = None) -> Dict:
         download_opts = {
             **self._base_opts,
+            **self._platform_opts(url),
             'format': itag,
             'outtmpl': f'{settings.DOWNLOAD_DIR}/%(title)s_[%(id)s].%(ext)s',
             'postprocessors': [],
@@ -158,12 +168,6 @@ class YouTubeService:
             'retries': 5,
             'extractor_retries': 5,
             'fragment_retries': 10,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['ios', 'web', 'android', 'web_music'],
-                    'player_skip': ['configs', 'webpage'],
-                },
-            },
             'retry_sleep_functions': {
                 'http': lambda n: min(30, (n + 1) * 2),
                 'fragment': lambda n: min(30, (n + 1) * 2),
