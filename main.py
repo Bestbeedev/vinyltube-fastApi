@@ -60,10 +60,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0"]
-)
+trusted_hosts = [h.strip() for h in settings.TRUSTED_HOSTS.split(",")]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
 # Servir les fichiers statiques du frontend
 if os.path.exists(os.path.join(settings.FRONTEND_BUILD_PATH, "index.html")):
