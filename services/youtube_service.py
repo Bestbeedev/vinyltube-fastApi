@@ -23,12 +23,15 @@ _YOUTUBE_DOMAINS = re.compile(r'youtube\.com|youtu\.be')
 
 class YouTubeService:
     def __init__(self):
+        self._cookies_path = settings.YOUTUBE_COOKIES_PATH
         self._base_opts = {
             'quiet': True,
             'no_warnings': True,
             'nocheckcertificate': True,
             'ffmpeg_location': _FFMPEG_LOCATION,
         }
+        if os.path.exists(self._cookies_path):
+            self._base_opts['cookiefile'] = self._cookies_path
         self._youtube_extra: dict = {}
         self._impersonate_opts = {
             'impersonate': ImpersonateTarget('chrome'),

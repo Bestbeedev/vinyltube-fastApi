@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = 10
     RATE_LIMIT_WINDOW: int = 60  # secondes
     
+    # YouTube Cookies (chemin vers le fichier cookies.txt au format Netscape)
+    YOUTUBE_COOKIES_PATH: str = "./cookies.txt"
+    
     # Trusted Hosts
     TRUSTED_HOSTS: str = "*"  # Hôtes acceptés (séparés par des virgules, "*" pour tous)
     
