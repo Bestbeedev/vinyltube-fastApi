@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import time
@@ -54,7 +54,7 @@ app = FastAPI(
 # Middlewares
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "https://vinyltube.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,17 +63,9 @@ app.add_middleware(
 trusted_hosts = [h.strip() for h in settings.TRUSTED_HOSTS.split(",")]
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
-# Servir les fichiers statiques du frontend
-if os.path.exists(os.path.join(settings.FRONTEND_BUILD_PATH, "index.html")):
-    app.mount("/static", StaticFiles(directory=settings.FRONTEND_BUILD_PATH), name="static")
-
 @app.get("/")
-async def serve_frontend():
-    """Servir le frontend Next.js"""
-    frontend_path = os.path.join(settings.FRONTEND_BUILD_PATH, "index.html")
-    if os.path.exists(frontend_path):
-        return FileResponse(frontend_path)
-    return JSONResponse({"message": "Frontend non trouvé. Build le frontend Next.js d'abord."})
+async def root():
+    return {"app": settings.APP_NAME, "version": settings.VERSION, "docs": "/docs"}
 
 @app.post("/api/extract-fast")
 async def extract_video_info_fast(request: Request, body: ExtractRequest):
