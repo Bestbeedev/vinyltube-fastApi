@@ -17,6 +17,7 @@ services:
       - FILE_RETENTION=86400
       - RATE_LIMIT_REQUESTS=10
       - RATE_LIMIT_WINDOW=60
+      - YTPOT_SERVER_URL=http://bgutil-pot-server:4416
     volumes:
       - ./downloads:/app/downloads
       - ./static:/app/static
@@ -28,7 +29,18 @@ services:
       retries: 3
       start_period: 40s
 
-  # Optional: Add nginx for production
+  bgutil-pot-server:
+    image: brainicism/bgutil-ytdlp-pot-provider:latest
+    ports:
+      - "4416:4416"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4416/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   nginx:
     image: nginx:alpine
     ports:

@@ -1,8 +1,9 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
-yt-dlp>=2024.12.0
+yt-dlp>=2025.05.22
 ffmpeg-python==0.2.0
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
 python-multipart>=0.0.12
 aiofiles>=24.1.0
+bgutil-ytdlp-pot-provider>=1.3.1
